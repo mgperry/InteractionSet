@@ -50,11 +50,11 @@ x[,olap$column]
 x[olap$row,olap$column]
 
 keep <- outer(olap$row, olap$column, "|") # OR mask
-temp <- as.matrix(x)
+temp <- contacts(x)
 temp[!keep] <- NA
 
 keep <- outer(olap$row, olap$column, "&") # AND mask
-temp <- as.matrix(x)
+temp <- contacts(x)
 temp[!keep] <- NA
 }
 

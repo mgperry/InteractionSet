@@ -39,14 +39,15 @@ ref.fun <- function(x, rows, cols, fill, ass=1, sam=1) { # Slow and steady imple
     return(ref)
 }
 
-expect_equal(as.matrix(out), ref.fun(x, chosen.rows, chosen.cols))
+expect_equal(contacts(out), ref.fun(x, chosen.rows, chosen.cols))
+expect_equal(contacts(out, sample=4), ref.fun(x, chosen.rows, chosen.cols, sam=4))
 out <- inflate(x, chosen.rows, chosen.cols, assay=2)
-expect_equal(as.matrix(out), ref.fun(x, chosen.rows, chosen.cols, ass=2))
-out <- inflate(x, chosen.rows, chosen.cols, sample=4)
-expect_equal(as.matrix(out), ref.fun(x, chosen.rows, chosen.cols, sam=4))
+expect_equal(contacts(out), ref.fun(x, chosen.rows, chosen.cols, ass=2))
+out <- inflate(x, chosen.rows, chosen.cols, sample=c(1,3,4))
+expect_identical(length(out), 3L)
 blah <- runif(Np)
-out <- inflate(x, chosen.rows, chosen.cols, fill=blah)
-expect_equal(as.matrix(out), ref.fun(x, chosen.rows, chosen.cols, fill=blah))
+out <- inflate(interactions(x), chosen.rows, chosen.cols, fill=blah)
+expect_equal(contacts(out), ref.fun(x, chosen.rows, chosen.cols, fill=blah))
 
 # Dealing with duplication and resorting:
 chosen.rows <- c(1:10, 1:10)
@@ -54,14 +55,14 @@ chosen.cols <- c(11:15, 11:15)
 out <- inflate(x, chosen.rows, chosen.cols)
 expect_identical(anchors(out, type="row", id=TRUE), chosen.rows)
 expect_identical(anchors(out, type="column", id=TRUE), chosen.cols)
-expect_equal(as.matrix(out), ref.fun(x, chosen.rows, chosen.cols))
+expect_equal(contacts(out), ref.fun(x, chosen.rows, chosen.cols))
 
 chosen.rows <- as.integer(c(1,3,2,6,7,9,2,2,1))
 chosen.cols <- as.integer(c(11,16,2,2,5))
 out <- inflate(x, chosen.rows, chosen.cols)
 expect_identical(anchors(out, type="row", id=TRUE), chosen.rows)
 expect_identical(anchors(out, type="column", id=TRUE), chosen.cols)
-expect_equal(as.matrix(out), ref.fun(x, chosen.rows, chosen.cols))
+expect_equal(contacts(out), ref.fun(x, chosen.rows, chosen.cols))
 
 # What happens with silly inputs?
 expect_true(nrow(inflate(x, integer(0), 1:10))==0L)
@@ -78,21 +79,22 @@ chosen.rows <- which(seqnames(regions(out))=="chrA")
 chosen.cols <- which(seqnames(regions(out))=="chrA")
 expect_identical(anchors(out, type="row", id=TRUE), chosen.rows)
 expect_identical(anchors(out, type="column", id=TRUE), chosen.cols)
-expect_equal(as.matrix(out), ref.fun(x, chosen.rows, chosen.cols))
+expect_equal(contacts(out), ref.fun(x, chosen.rows, chosen.cols))
 
 out <- inflate(x, "chrA", "chrB")
 chosen.rows <- which(seqnames(regions(out))=="chrA")
 chosen.cols <- which(seqnames(regions(out))=="chrB")
 expect_identical(anchors(out, type="row", id=TRUE), chosen.rows)
 expect_identical(anchors(out, type="column", id=TRUE), chosen.cols)
-expect_equal(as.matrix(out), ref.fun(x, chosen.rows, chosen.cols))
+expect_equal(contacts(out), ref.fun(x, chosen.rows, chosen.cols))
+
 
 out <- inflate(x, "chrA", c("chrA", "chrB")) # Multiple chromosomes.
 chosen.rows <- which(seqnames(regions(out))=="chrA")
 chosen.cols <- which(seqnames(regions(out)) %in%  c("chrA", "chrB"))
 expect_identical(anchors(out, type="row", id=TRUE), chosen.rows)
 expect_identical(anchors(out, type="column", id=TRUE), chosen.cols)
-expect_equal(as.matrix(out), ref.fun(x, chosen.rows, chosen.cols))
+expect_equal(contacts(out), ref.fun(x, chosen.rows, chosen.cols))
 
 expect_true(nrow(inflate(x, "whee", 1:10))==0L)
 expect_true(ncol(inflate(x, 1:5, "whee"))==0L)
@@ -106,20 +108,20 @@ out <- inflate(x, of.interest, of.interest)
 chosen.rows <- chosen.cols <- which(overlapsAny(regions(x), of.interest))
 expect_identical(anchors(out, type="row", id=TRUE), chosen.rows)
 expect_identical(anchors(out, type="column", id=TRUE), chosen.cols)
-expect_equal(as.matrix(out), ref.fun(x, chosen.rows, chosen.cols))
+expect_equal(contacts(out), ref.fun(x, chosen.rows, chosen.cols))
 
 out <- inflate(x, of.interest, of.interest, type="within")
 chosen.rows <- chosen.cols <- which(overlapsAny(regions(x), of.interest, type="within"))
 expect_identical(anchors(out, type="row", id=TRUE), chosen.rows)
 expect_identical(anchors(out, type="column", id=TRUE), chosen.cols)
-expect_equal(as.matrix(out), ref.fun(x, chosen.rows, chosen.cols))
+expect_equal(contacts(out), ref.fun(x, chosen.rows, chosen.cols))
 
 out <- inflate(x, of.interest[1], of.interest[2], type="within")
 chosen.rows <- which(overlapsAny(regions(x), of.interest[1], type="within"))
 chosen.cols <- which(overlapsAny(regions(x), of.interest[2], type="within"))
 expect_identical(anchors(out, type="row", id=TRUE), chosen.rows)
 expect_identical(anchors(out, type="column", id=TRUE), chosen.cols)
-expect_equal(as.matrix(out), ref.fun(x, chosen.rows, chosen.cols))
+expect_equal(contacts(out), ref.fun(x, chosen.rows, chosen.cols))
 
 expect_true(nrow(inflate(x, GRanges(), 1:10))==0L)
 expect_true(ncol(inflate(x, 1:5, GRanges()))==0L)
@@ -128,7 +130,7 @@ expect_true(nrow(suppressWarnings(inflate(x, out.of.range, 1:10)))==0L)
 expect_true(ncol(suppressWarnings(inflate(x, 1:5, out.of.range)))==0L)
 
 all.chr <- range(all.regions)
-expect_identical(inflate(x, all.chr[1], all.chr[2]), inflate(x, "chrA", "chrB"))
+expect_equal(inflate(x, all.chr[1], all.chr[2]), inflate(x, "chrA", "chrB"))
 
 ##########################################
 # Deflation tests

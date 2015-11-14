@@ -16,23 +16,27 @@ x <- ContactMatrix(counts, all.anchor1, all.anchor2, all.regions)
 
 expect_output(show(x), sprintf("class: ContactMatrix 
 dim: %i %i 
-regions: %i
-metadata(0):", Nr, Nc, N), 
+metadata(0):
+assays(1): Sample1
+metadata column names(0):
+regions: %i", Nr, Nc, N), 
 fixed=TRUE)
 
 temp.x <- ContactMatrix(counts, all.anchor1, all.anchor2, all.regions, metadata=list("whee"=1))
 expect_output(show(temp.x), sprintf("class: ContactMatrix 
 dim: %i %i 
-regions: %i
-metadata(1): whee", Nr, Nc, N), 
+metadata(1): whee
+assays(1): Sample1
+metadata column names(0):
+regions: %i", Nr, Nc, N), 
 fixed=TRUE)
 metadata(temp.x)$whee <- NULL
-expect_identical(temp.x, x)
+expect_equal(temp.x, x)
 
 # Testing all of our new slots:
 
 expect_that(x, is_a("ContactMatrix"))
-expect_that(as.matrix(x), equals(counts))
+expect_that(contacts(x), equals(counts))
 expect_true(!is.unsorted(regions(x)))
 
 o <- order(all.regions)
@@ -70,8 +74,8 @@ four.peat <- GRanges("chrA", IRanges(1:4, 1:4))
 expect_that(ContactMatrix(matrix(0, 0, 4), integer(0), 1:4, four.peat), is_a("ContactMatrix")) # No rows.
 expect_that(ContactMatrix(matrix(0, 0, 4), GRanges(), four.peat), is_a("ContactMatrix")) # Nothing at all
 
-expect_error(ContactMatrix(matrix(0, 3, 1), 1:4, 1, all.regions), "'matrix' nrow must be equal to length of 'anchor1'")
-expect_error(ContactMatrix(matrix(0, 4, 0), 1:4, 1, all.regions), "'matrix' ncol must be equal to length of 'anchor2'")
+expect_error(ContactMatrix(matrix(0, 3, 1), 1:4, 1, all.regions), "'contacts' nrow must be equal to length of 'anchor1'")
+expect_error(ContactMatrix(matrix(0, 4, 0), 1:4, 1, all.regions), "'contacts' ncol must be equal to length of 'anchor2'")
 expect_error(ContactMatrix(matrix(0, 4, 0), 0:3, 1:4, all.regions), "all anchor indices must be positive integers")
 expect_error(ContactMatrix(matrix(0, 4, 0), c(1,2,3,NA), 1:4, all.regions), "all anchor indices must be finite integers")
 expect_error(ContactMatrix(matrix(0, 4, 0), c(1,2,3,-1), 1:4, all.regions), "all anchor indices must be positive integers")
@@ -118,10 +122,10 @@ expect_identical(regions(x.dump), regions(x.dump2))
 
 x.dump <- x
 new.mat <- matrix(sample(N, Nr*Nc, replace=TRUE), Nr, Nc)
-as.matrix(x.dump) <- new.mat
-expect_identical(new.mat, as.matrix(x.dump))
-as.matrix(x.dump) <- 1:Nr
-expect_equal(as.matrix(x.dump), matrix(1:Nr, Nr, Nc))
+contacts(x.dump) <- new.mat
+expect_identical(new.mat, contacts(x.dump))
+contacts(x.dump) <- 1:Nr
+expect_equal(contacts(x.dump), matrix(1:Nr, Nr, Nc))
 
 # Testing the subsetting.
 
@@ -129,10 +133,13 @@ rchosen <- 1:5
 xsub <- x[rchosen,]
 expect_output(show(xsub), "class: ContactMatrix 
 dim: 5 20 
+metadata(0):
+assays(1): Sample1
+metadata column names(0):
 regions: 30", 
 fixed=TRUE)
 
-expect_that(as.matrix(xsub), is_identical_to(as.matrix(x)[rchosen,]))
+expect_that(contacts(xsub), is_identical_to(contacts(x)[rchosen,]))
 expect_that(regions(xsub), is_identical_to(regions(x)))
 expect_that(anchors(xsub, type="row"), is_identical_to(new.regions[new.anchor1][rchosen]))
 expect_that(anchors(xsub, type="column"), is_identical_to(new.regions[new.anchor2]))
@@ -141,10 +148,13 @@ cchosen <- 10:20
 xsub <- x[,cchosen]
 expect_output(show(xsub), "class: ContactMatrix 
 dim: 10 11 
+metadata(0):
+assays(1): Sample1
+metadata column names(0):
 regions: 30", 
 fixed=TRUE)
 
-expect_that(as.matrix(xsub), is_identical_to(as.matrix(x)[,cchosen]))
+expect_that(contacts(xsub), is_identical_to(contacts(x)[,cchosen]))
 expect_that(regions(xsub), is_identical_to(regions(x)))
 expect_that(anchors(xsub, type="row"), is_identical_to(new.regions[new.anchor1]))
 expect_that(anchors(xsub, type="column"), is_identical_to(new.regions[new.anchor2][cchosen]))
@@ -152,10 +162,13 @@ expect_that(anchors(xsub, type="column"), is_identical_to(new.regions[new.anchor
 xsub <- subset(x,rchosen,cchosen)
 expect_output(show(xsub), "class: ContactMatrix 
 dim: 5 11 
+metadata(0):
+assays(1): Sample1
+metadata column names(0):
 regions: 30", 
 fixed=TRUE)
 
-expect_that(as.matrix(xsub), is_identical_to(as.matrix(x)[rchosen,cchosen]))
+expect_that(contacts(xsub), is_identical_to(contacts(x)[rchosen,cchosen]))
 expect_that(regions(xsub), is_identical_to(regions(x)))
 expect_that(anchors(xsub, type="row"), is_identical_to(new.regions[new.anchor1][rchosen]))
 expect_that(anchors(xsub, type="column"), is_identical_to(new.regions[new.anchor2][cchosen]))
@@ -169,7 +182,7 @@ temp.x <- x
 temp.x[rchosen+5,] <- x[rchosen,]
 new.index <- seq_len(nrow(x))
 new.index[rchosen+5] <- rchosen
-expect_equal(as.matrix(temp.x), as.matrix(x)[new.index,])
+expect_equal(contacts(temp.x), contacts(x)[new.index,])
 expect_identical(anchors(temp.x, type="row"), anchors(x, type="row")[new.index,])
 expect_identical(anchors(temp.x, type="column"), anchors(x, type="column"))
 
@@ -177,15 +190,15 @@ temp.x <- x
 temp.x[,cchosen-9,] <- x[,cchosen]
 new.index <- seq_len(ncol(x))
 new.index[cchosen-9] <- cchosen
-expect_equal(as.matrix(temp.x), as.matrix(x)[,new.index])
+expect_equal(contacts(temp.x), contacts(x)[,new.index])
 expect_identical(anchors(temp.x, type="row"), anchors(x, type="row"))
 expect_identical(anchors(temp.x, type="column"), anchors(x, type="column")[new.index,])
 
 temp.x <- x
 temp.x[0,] <- x[0,]
-expect_identical(temp.x, x)
+expect_equal(temp.x, x)
 temp.x[,0] <- x[,0]
-expect_identical(temp.x, x)
+expect_equal(temp.x, x)
 
 # Testing the combining.
 
@@ -249,6 +262,6 @@ expect_false(any(dedupped$column))
 tx <- t(x)
 expect_identical(anchors(x, type="row"), anchors(tx, type="column"))
 expect_identical(anchors(x, type="column"), anchors(tx, type="row"))
-expect_identical(t(x[0,]), tx[,0])
-expect_identical(t(x[,0]), tx[0,])
+expect_equal(t(x[0,]), tx[,0])
+expect_equal(t(x[,0]), tx[0,])
 

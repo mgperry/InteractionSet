@@ -2,13 +2,19 @@
 # Defines the ContactMatrix class.
 
 setClass("ContactMatrix",
-    contains="Annotated", 
+    contains="Vector", 
     slots=list(
-        matrix="matrix", 
+        contacts="Assays",
         anchor1="integer",
         anchor2="integer",
         regions="GRanges"
-    )		
+    ),
+    prototype=prototype(
+        contacts=Assays(),
+        anchor1=integer(0),
+        anchor2=integer(0),
+        regions=GRanges()
+    )
 )
 
 setValidity("ContactMatrix", function(object) {
@@ -18,30 +24,43 @@ setValidity("ContactMatrix", function(object) {
     msg <- .check_inputs(object@anchor1, object@anchor2, object@regions, same.length=FALSE)
     if (is.character(msg)) { return(msg) }
 
-    if (nrow(object@matrix)!=length(object@anchor1)) { 
-        return("'matrix' nrow must be equal to length of 'anchor1'")
+    if (nrow(object@contacts)!=length(object@anchor1)) { 
+        return("'contacts' nrow must be equal to length of 'anchor1'")
     }
-    if (ncol(object@matrix)!=length(object@anchor2)) {
-        return("'matrix' ncol must be equal to length of 'anchor2'")
+    if (ncol(object@contacts)!=length(object@anchor2)) {
+        return("'contacts' ncol must be equal to length of 'anchor2'")
+    }
+    if (length(object@contacts)!=nrow(object@elementMetadata)) { 
+        return("'contacts' length should be equal to 'elementMetadata' nrow")
     }
     return(TRUE)
 }) 
 
 setMethod("show", signature("ContactMatrix"), function(object) {
     cat("class:", class(object), "\n")
-    cat("dim:", dim(object@matrix), "\n")
-    cat(sprintf("regions: %i\n", length(object@regions)))
-    
+    cat("dim:", dim(object@contacts), "\n")
+
     expt <- names(metadata(object))
     if (is.null(expt))
         expt <- character(length(metadata(object)))
     scat("metadata(%d): %s\n", expt)
+
+    nms <- names(contacts(object, sample=NA))
+    if (is.null(nms))
+        nms <- character(length(assays(object, withDimnames=FALSE)))
+    scat("assays(%d): %s\n", nms)
+
+    mcolnames <- names(mcols(object))
+    fmt <- "metadata column names(%d): %s\n"
+    scat(fmt, mcolnames)
+
+    cat(sprintf("regions: %i\n", length(object@regions)))
 })
 
 ##############################################
 # Constructor:
 
-.new_ContactMatrix <- function(matrix, anchor1, anchor2, regions, metadata) {
+.new_ContactMatrix <- function(contacts, anchor1, anchor2, regions, metadata) {
     anchor1 <- as.integer(anchor1)
     anchor2 <- as.integer(anchor2)
     
@@ -49,19 +68,29 @@ setMethod("show", signature("ContactMatrix"), function(object) {
     if (is.character(msg)) { stop(msg) }
     out <- .resort_regions(anchor1, anchor2, regions, enforce.order=FALSE)
 
-    new("ContactMatrix", matrix=matrix, anchor1=out$anchor1, anchor2=out$anchor2, 
-        regions=out$regions, metadata=metadata)
+    # Coercing it to be an assays object, if it isn't already.        
+    if (!is(contacts, "Assays")) { 
+        contacts <- Assays(contacts)
+    }
+    nlibs <- length(contacts)
+    if (length(unique(names(contacts)))!=nlibs) {
+        names(contacts) <- paste0("Sample", seq_len(nlibs))
+    }
+    elementMetadata <- new("DataFrame", nrows=nlibs) 
+
+    new("ContactMatrix", contacts=contacts, anchor1=out$anchor1, anchor2=out$anchor2, 
+        regions=out$regions, elementMetadata=elementMetadata, metadata=metadata)
 }
 
-setGeneric("ContactMatrix", function(matrix, anchor1, anchor2, ...) { standardGeneric("ContactMatrix") })
+setGeneric("ContactMatrix", function(contacts, anchor1, anchor2, ...) { standardGeneric("ContactMatrix") })
 setMethod("ContactMatrix", c("ANY", "numeric", "numeric"), 
-    function(matrix, anchor1, anchor2, regions, metadata=list()) { 
-        .new_ContactMatrix(matrix, anchor1, anchor2, regions, metadata)
+    function(contacts, anchor1, anchor2, regions, metadata=list()) { 
+        .new_ContactMatrix(contacts, anchor1, anchor2, regions, metadata)
     }
 )
 
 setMethod("ContactMatrix", c("ANY", "GRanges", "GRanges"), 
-    function(matrix, anchor1, anchor2, regions, metadata=list()) { 
+    function(contacts, anchor1, anchor2, regions, metadata=list()) { 
 
         if (missing(regions)) { 
             collated <- .collate_GRanges(anchor1, anchor2)
@@ -76,7 +105,7 @@ setMethod("ContactMatrix", c("ANY", "GRanges", "GRanges"),
             }
         }
         
-        .new_ContactMatrix(matrix, anchor1, anchor2, regions, metadata)
+        .new_ContactMatrix(contacts, anchor1, anchor2, regions, metadata)
     }
 )
 
@@ -84,43 +113,58 @@ setMethod("ContactMatrix", c("ANY", "GRanges", "GRanges"),
 # Matrix dimensions
 
 setMethod("dim", "ContactMatrix", function(x) { 
-    dim(x@matrix)
+    dim(x@contacts)
 })
 
 setMethod("length", "ContactMatrix", function(x) { 
-    length(x@matrix)
+    length(x@contacts)
 })
 
-setMethod("dimnames", "ContactMatrix", function(x) {
-    dimnames(x@matrix)
-})
-
-setReplaceMethod("dimnames", "ContactMatrix", function(x, value) {
-    dimnames(x@matrix) <- value
-    return(x)
-})
-
-setMethod("as.matrix", "ContactMatrix", function(x) {
-    return(x@matrix)
+setGeneric("contacts", function(x, ...) { standardGeneric("contacts") })
+setMethod("contacts", "ContactMatrix", function(x, sample=1) {
+    if (is.na(sample)) { 
+        return(x@contacts) 
+    }
+    return(x@contacts[[sample]])
 }) 
 
-setGeneric("as.matrix<-", function(x, ..., value) { standardGeneric("as.matrix<-") });
-setReplaceMethod("as.matrix", "ContactMatrix", function(x, value) {
-    x@matrix[] <- value
+setGeneric("contacts<-", function(x, ..., value) { standardGeneric("contacts<-") });
+setReplaceMethod("contacts", "ContactMatrix", function(x, sample=1, ..., value) {
+    if (is.na(sample)) { 
+        if (!is(value, "Assays")) { 
+            value <- Assays(value)
+        }
+        x@contacts <- value
+    } else {
+        x@contacts[[sample]][] <- value
+    }
     return(x)
 }) 
+
+setMethod("$", "ContactMatrix", function(x, name) {
+    return(mcols(x)[[name]])          
+})
+
+setReplaceMethod("$", "ContactMatrix", function(x, name, value) {
+    mcols(x)[[name]] <- value
+    return(x)    
+})
 
 ##############################################
 # Subsetting
 
 setMethod("[", c("ContactMatrix", "ANY", "ANY"), function(x, i, j, ..., drop=TRUE) {
-    if (!missing(i)) { 
+    if (!missing(i) && !missing(j)) { 
         x@anchor1 <- x@anchor1[i]
-    }
-    if (!missing(j)) {
         x@anchor2 <- x@anchor2[j]
+        x@contacts <- x@contacts[i,j]
+    } else if (!missing(i)) { 
+        x@anchor1 <- x@anchor1[i]
+        x@contacts <- x@contacts[i,]
+    } else if (!missing(j)) {
+        x@anchor2 <- x@anchor2[j]
+        x@contacts <- x@contacts[,j]
     }
-    x@matrix <- x@matrix[i,j,drop=FALSE]
     return(x)
 }) 
 
@@ -128,13 +172,17 @@ setMethod("[<-", c("ContactMatrix", "ANY", "ANY", "ContactMatrix"), function(x, 
     if (!identical(regions(value), regions(x))) { 
         stop("replacement and original 'regions' must be identical")
     }
-    if (!missing(i)) { 
+    if (!missing(i) && !missing(j)) { 
         x@anchor1[i] <- value@anchor1
-    }
-    if (!missing(j)) { 
         x@anchor2[j] <- value@anchor2
+        x@contacts[i,j] <- value@contacts
+    } else if (!missing(i)) { 
+        x@anchor1[i] <- value@anchor1
+        x@contacts[i,] <- value@contacts
+    } else if (!missing(j)) { 
+        x@anchor2[j] <- value@anchor2
+        x@contacts[,j] <- value@contacts
     }
-    x@matrix[i,j] <- value@matrix
     return(x)
 })
 
@@ -158,7 +206,7 @@ setMethod("cbind", "ContactMatrix", function(..., deparse.level=1) {
         }    
     }
     
-    ref@matrix <- do.call(cbind, lapply(incoming, as.matrix))
+    ref@contacts <- do.call(cbind, lapply(incoming, contacts, sample=NA))
     ref@anchor2 <- unlist(lapply(incoming, anchors, id=TRUE, type="column"))
     return(ref)
 })
@@ -176,13 +224,50 @@ setMethod("rbind", "ContactMatrix", function(..., deparse.level=1) {
         }    
     }
     
-    ref@matrix <- do.call(rbind, lapply(incoming, as.matrix))
+    ref@contacts <- do.call(rbind, lapply(incoming, contacts, sample=NA))
     ref@anchor1 <- unlist(lapply(incoming, anchors, id=TRUE, type="row"))
     return(ref)
 })
 
-setMethod("t", "ContactMatrix", function(x) { 
-    x@matrix <- t(x@matrix)
+setGeneric("sbind", function(..., deparse.level=1) { standardGeneric("sbind") }, signature="...")
+setMethod("sbind", "ContactMatrix", function(..., deparse.level=1) {
+    incoming <- list(...)
+    ref <- incoming[[1]]
+    nsamples <- length(ref)
+    collected <- list(mcols(ref))
+
+    for (x in incoming[-1]) {
+        if (!identical(regions(ref), regions(x))) { 
+            stop("'regions' must be identical for 'lbind'")
+        }
+        if (!identical(anchors(ref, type="row", id=TRUE),
+                       anchors(x, type="row", id=TRUE))) {
+            stop("row anchor indices must be identical for 'lbind'")
+        }    
+        if (!identical(anchors(ref, type="column", id=TRUE),
+                       anchors(x, type="column", id=TRUE))) {
+            stop("column anchor indices must be identical for 'lbind'")
+        }    
+
+        # Going through and adding assays together
+        current <- seq_len(length(x))
+        for (i in current) {
+            ref@contacts[[nsamples+i]] <- x@contacts[[i]]
+        }
+        names(ref@contacts)[nsamples+current] <- names(x@contacts)
+        nsamples <- nsamples + length(x)
+        collected <- c(collected, mcols(x))
+    }
+
+    ref@elementMetadata <- do.call(rbind, collected)
+    return(ref)        
+})
+
+setMethod("t", "ContactMatrix", function(x) {
+    tmp <- Assays() 
+    for (i in seq_along(x@contacts)) { tmp[[i]] <- t(x@contacts[[i]]) }
+    x@contacts <- tmp
+
     tmp <- x@anchor1
     x@anchor1 <- x@anchor2
     x@anchor2 <- tmp

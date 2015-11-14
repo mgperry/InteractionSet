@@ -16,7 +16,8 @@ exportMethods(
     pairdist, intrachr,
     linearize,
     ContactMatrix, 
-    "as.matrix<-",
+    "contacts", "contacts<-", 
+    sbind,
     inflate, deflate
 )
 

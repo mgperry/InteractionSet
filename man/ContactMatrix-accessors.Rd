@@ -11,17 +11,18 @@
 \alias{appendRegions<-,ContactMatrix-method}
 
 \alias{show,ContactMatrix-method}
-\alias{as.matrix,ContactMatrix-method}
 \alias{t,ContactMatrix-method}
 
-\alias{as.matrix<-}
-\alias{as.matrix<-,ContactMatrix-method}
+\alias{contacts}
+\alias{contacts,ContactMatrix-method}
+\alias{contacts<-}
+\alias{contacts<-,ContactMatrix-method}
 
 \alias{dim,ContactMatrix-method}
-\alias{dimnames,ContactMatrix-method}
-\alias{dimnames<-,ContactMatrix-method}
-\alias{dimnames<-,ContactMatrix,ANY-method}
 \alias{length,ContactMatrix-method}
+
+\alias{$,ContactMatrix-method}
+\alias{$<-,ContactMatrix-method}
 
 \title{ContactMatrix accessors}
 
@@ -39,35 +40,38 @@ Methods to get and set fields in an ContactMatrix object.
 \S4method{appendRegions}{ContactMatrix}(x) <- value
 
 \S4method{show}{ContactMatrix}(x)
-\S4method{as.matrix}{ContactMatrix}(x)
-\S4method{as.matrix}{ContactMatrix}(x) <- value
+\S4method{dim}{ContactMatrix}(x)
+\S4method{length}{ContactMatrix}(x)
+
+\S4method{contacts}{ContactMatrix}(x, sample=1)
+\S4method{contacts}{ContactMatrix}(x, sample=1) <- value
+
 \S4method{t}{ContactMatrix}(x)
 
-\S4method{dim}{ContactMatrix}(x)
-\S4method{dimnames}{ContactMatrix}(x)
-\S4method{dimnames}{ContactMatrix}(x) <- value
-\S4method{length}{ContactMatrix}(x)
+\S4method{$}{ContactMatrix}(x, name)
+\S4method{$}{ContactMatrix}(x, name) <- value
 }
 
 \arguments{
 \item{x}{An ContactMatrix object.}
 
-\item{type}{a string specifying which anchors are to be extracted or replaced.}
+\item{type}{A string specifying which anchors are to be extracted or replaced.}
 
-\item{id}{a scalar logical indicating whether indices or GRanges should be returned.}
+\item{id}{A logical scalar indicating whether indices or GRanges should be returned.}
+
+\item{sample}{An integer scalar indicating the sample for which the matrix is to be returned.}
 
 \item{value}{
-    For \code{anchors<-}, a list of two integer vectors.
-    The first and second vectors must have length equal to the number of rows and columns of \code{x}, respectively.
+    For \code{anchors<-}, a list of two integer vectors if \code{type="both"}, 
+        where the first and second vectors must have length equal to the number of rows and columns of \code{x}, respectively.
+    For \code{type="first"} or \code{"second"}, an integer vector of length equal to the number of rows or columns in \code{x}, respectively.
 
     For \code{regions<-}, a GRanges object of length equal to that of \code{regions(x)}.
     For \code{newRegions<-}, a GRanges object that is a superset of all entries in \code{regions(x)} involved in interactions.
     For \code{appendRegions<-}, a GRanges of any length containing additional regions.
 
-    For \code{as.matrix<-}, any value or vector that can be used to replace the existing matrix entries.
-    
-    For \code{dimnames<-}, a list of two character vectors corresponding to the row and column names, respectively.
-    These can also be passed separately via \code{rownames<-} and \code{colnames<-}.
+    For \code{contacts<-}, if \code{lib} is not \code{NA}, a matrix of the same dimensions as those already in \code{x};
+        otherwise, a list of matrices with the same dimensions, where the number of libraries is equal to the number of rows in \code{colData(x)}.
 }
 }
 
@@ -76,10 +80,12 @@ The return value of \code{anchors} varies depending on \code{type} and \code{id}
 If \code{id=FALSE}, a GRanges object will be returned containing the regions specified by the \code{anchor1} or \code{anchor2} slots in \code{x}, 
     for \code{type=="row"} or \code{"column"}, respectively.
 If \code{type="both"}, a GRangesList will be returned with two entries - \code{row} and \code{column}, containing regions specified by \code{anchor1} and \code{anchor2} respectively.
-    
 However, if \code{id=TRUE}, the integer vectors in the \code{anchor1} or \code{anchor2} slots of \code{x} are returned directly 
     (a list of length two is returned for \code{type="both"}, containing both of the vectors).
-Replacement in \code{anchors<-} can only be performed using a list of two integer vectors in \code{value}.
+
+Replacement in \code{anchors<-} can only be performed using anchor indices.
+If \code{type="both"}, a list of two integer vectors is required in \code{value}, specifying the indices of the interacting regions in \code{regions(x)}.
+If \code{type="first"} or \code{"second"}, an integer vector is required to replace the existing values in the \code{anchor1} or \code{anchor2} slot, respectively.
    
 For \code{regions}, a GRanges is returned equal to the \code{regions} slot in \code{x}.
 For \code{regions<-}, resorting of the input GRanges in \code{value} is performed automatically, along with re-indexing of the anchors.    
@@ -87,16 +93,19 @@ In addition, the input GRanges must be of the same length as the existing object
 The \code{newRegions} replacement method can take variable length GRanges, but requires that the replacement contain (at least) all ranges contained in \code{anchors(x)}.
 The \code{appendRegions} replacement method appends extra intervals to the existing \code{regions} slot of \code{x}.
 
-The \code{show} method will print out the dimensions of the \code{matrix} slot and the length of the \code{regions} slot.
-The \code{as.matrix} method will return the value of the \code{matrix} slot, containing the matrix of interaction data.
+The \code{show} method will print out the dimensions of the matrices in the \code{contacts} slot and the length of the \code{regions} slot.
+The \code{contacts} method will return one matrix in \code{contacts} corresponding to the library specified in \code{lib}.
+If \code{lib} is \code{NA}, the entire Assays object in \code{contacts} is returned instead.
+Replacement of \code{contacts} can be performed by supplying an individual matrix to replace that for the corresponding \code{lib},
+    or by supplying a list of matrices to replace the entire \code{contacts} slot.
+
+The \code{dim} method will return a vector of length 2, containing the dimensions of the matrices in the \code{matrix} slot.
+The \code{length} method will return an integer scalar corresponding to the total number of matrices, which can be interpreted as the number of libraries.
 The \code{t} method will transpose the matrix, i.e., switch the rows and columns (and switch the vectors in the \code{anchor1} and \code{anchor2} slots).
 
-The \code{dim} method will return a vector of length 2, containing the dimensions of the \code{matrix} slot.
-The \code{dimnames} method will return a list of length 2, containing the row and column names of \code{matrix} (these can be modified with the \code{dimnames<-} method).
-The \code{length} method will return an integer scalar corresponding to the total number of entries in the \code{matrix} slot.
-
-As the ContactMatrix class inherits from the \code{\link{Annotated}} class, additional metadata can be stored in the \code{metadata} slot.
-This can be accessed or modified with \code{\link{metadata,Annotated-method}}.
+As the ContactMatrix class inherits from the \code{\link[S4Vectors]{Vector}} class, additional metadata can be stored in the various slots.
+Experiment-wide metadata can be accessed or modified with \code{\link{metadata}}, while sample-specific metadata can be accessed or set with \code{\link{mcols}}.
+The \code{x$name} operator is a convenience wrapper that behaves identically to \code{mcols(x)$name}.
 }
 
 \examples{

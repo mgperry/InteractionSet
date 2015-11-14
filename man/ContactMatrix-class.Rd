@@ -9,20 +9,21 @@
 \title{ContactMatrix class and constructors}
 
 \description{
-The ContactMatrix class contains a matrix where rows and columns represent genomic loci.
+The ContactMatrix class contains one or more matrices of the same dimensions, where each matrix represents the data for one sample.
+In each matrix, the rows and columns represent genomic loci.
 Each entry of the matrix contains information about the interaction between the loci represented by the corresponding row/column, e.g., contact frequencies.
 Coordinates of the loci are also contained within this class.
 }
 
 \usage{
-\S4method{ContactMatrix}{ANY,numeric,numeric}(matrix, anchor1, anchor2, regions, metadata=list())
+\S4method{ContactMatrix}{ANY,numeric,numeric}(contacts, anchor1, anchor2, regions, metadata=list())
 
-\S4method{ContactMatrix}{ANY,GRanges,GRanges}(matrix, anchor1, anchor2, regions, metadata=list())
+\S4method{ContactMatrix}{ANY,GRanges,GRanges}(contacts, anchor1, anchor2, regions, metadata=list())
 }
 
 \arguments{
-\item{matrix}{
-    A matrix containing interaction data.
+\item{contacts}{
+    A matrix or list of matrices containing interaction data.
 }
 
 \item{anchor1,anchor2}{
@@ -30,7 +31,7 @@ Coordinates of the loci are also contained within this class.
     
     For \code{ContactMatrix,ANY,GRanges,GRanges-method}, a GRanges object specifying the interacting loci.
     
-    In both cases, \code{anchor1} and \code{anchor2} should have lengths equal to the number of rows and columns in \code{matrix}, respectively.
+    In both cases, \code{anchor1} and \code{anchor2} should have lengths equal to the number of rows and columns in \code{contacts}, respectively.
 }
 
 \item{regions}{
@@ -44,20 +45,24 @@ Coordinates of the loci are also contained within this class.
 }
 
 \details{
-The ContactMatrix class inherits from the \code{\link[S4Vectors]{Annotated}} class, with several additional slots:
+The ContactMatrix class inherits from the \code{\link[S4Vectors]{Vector}} class, with several additional slots:
 \describe{
-\item{\code{matrix}:}{A matrix.}
+\item{\code{contacts}:}{An Assays object containing one or more matrices with the same dimensions.}
 \item{\code{anchor1}:}{An integer vector specifying the index of the first interacting region.}
 \item{\code{anchor2}:}{An integer vector specifying the index of the second interacting region.}
 \item{\code{regions}:}{A sorted GRanges object containing the coordinates of all interacting regions.}
 }
-Each entry of \code{anchor1} corresponds to a row in \code{matrix}, while each entry of \code{anchor2} corresponds to a column.
-Each entry of \code{matrix} represents an interaction between the corresponding entries in \code{anchor1} and \code{anchor2}, i
-    which point to the relevant coordinates in \code{regions} for each locus.
+If multiple matrices are present, they are assumed to contain data for different samples (one matrix per sample).
+The number of matrices should be equal to the number of rows in \code{elementMetadata}, which stores any sample-specific information.
+
+Each entry of \code{anchor1} corresponds to a row in each matrix of \code{contacts}, while each entry of \code{anchor2} corresponds to a column.
+Each entry of any matrix in \code{contacts} represents an interaction between the corresponding row and column, 
+    i.e., between entries in \code{anchor1} and \code{anchor2}.
+These, in turn, point to the relevant coordinates in \code{regions} to define the two interacting loci.
 
 ContactMatrix objects can be constructed by specifying integer vectors in \code{ContactMatrix,ANY,numeric,numeric-method} to define pairwise interactions.
 Coordinates of all of the interacting loci must be specified in the \code{regions} argument.
-This means that the range of entries must lie within \code{[1, length(regions)]}.:w
+This means that the range of entries must lie within \code{[1, length(regions)]}.
 
 Alternatively, ContactMatrix objects can be constructed by directly supplying the GRanges of the interacting loci to \code{ContactMatrix,ANY,GRanges,GRanges-method}.
 If \code{regions} is not specified, this will be constructed automatically from the two sets of supplied GRanges.
@@ -87,6 +92,10 @@ x <- ContactMatrix(counts, all.anchor1, all.anchor2, all.regions)
 x <- ContactMatrix(counts, all.regions[all.anchor1], 
         all.regions[all.anchor2])
 x <- ContactMatrix(counts, all.regions[all.anchor1], 
+        all.regions[all.anchor2], all.regions)
+
+# Multiple libraries can be handled:
+x2 <- ContactMatrix(list(counts, counts),  all.regions[all.anchor1],
         all.regions[all.anchor2], all.regions)
 }
 

@@ -52,7 +52,7 @@ setMethod("pairdist", "ContactMatrix", function(x, type="mid")
     ai2 <- rep(anchors(x, type="column", id=TRUE), each=nrow(x))
     swapped <- .enforce_order(ai1, ai2) # To get sensible distances
     out <- .get_dist_output(regions(x), swapped$anchor1, swapped$anchor2, type)
-    dim(out) <- dim(x@matrix)
+    dim(out) <- dim(x@contacts)
     return(out)
 })
 

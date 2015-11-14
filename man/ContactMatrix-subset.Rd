@@ -8,6 +8,7 @@
 
 \alias{cbind,ContactMatrix-method}
 \alias{rbind,ContactMatrix-method}
+\alias{sbind,ContactMatrix-method}
 
 \title{ContactMatrix subsetting and combining}
 
@@ -26,6 +27,7 @@ Methods to subset or combine ContactMatrix objects.
 
 \S4method{cbind}{ContactMatrix}(..., deparse.level=1)
 \S4method{rbind}{ContactMatrix}(..., deparse.level=1)
+\S4method{sbind}{ContactMatrix}(..., deparse.level=1)
 }
 
 \arguments{
@@ -34,7 +36,7 @@ Methods to subset or combine ContactMatrix objects.
 \item{i, j}{A vector of subscripts, indicating the rows and columns to be subsetted for \code{i} and \code{j}, respectively.}
 
 \item{...}{    
-    For \code{cbind}, \code{rbind} and \code{c}, \code{...} contains ContactMatrix objects to be combined.
+    For \code{cbind}, \code{rbind} and \code{sbind}, \code{...} contains ContactMatrix objects to be combined.
     Otherwise, this argument is ignored during subsetting.
 }
 
@@ -58,7 +60,12 @@ However, note that the value of \code{regions} will not be modified by subsettin
 \code{cbind} will combines objects with the same rows but different columns.
 Errors will occur if the rows are not identical between objects (i.e., must have same values in the slots for \code{regions} and \code{anchor1}).
 Conversely, \code{rbind} will combines objects with the same columns but different rows.
-Again, errors will occur if the columns are not identical (i.e., must have same values in the slots for \code{regions} and \code{anchor2}).
+Errors will occur if the columns are not identical (i.e., must have same values in the slots for \code{regions} and \code{anchor2}).
+
+In all other binding functions, the number of matrices (i.e., samples) is assumed to be constant between objects.
+\code{sbind} will combine objects with the same rows and columns but differing numbers of matrices.
+This produces a ContactMatrix object where the matrices across all objects are stored together in the \code{contacts} slot,
+    and is equivalent to consolidating data from different samples.
 }
 
 \examples{
@@ -71,11 +78,12 @@ x[1:5,10:15]
 
 x2 <- x
 x2[1:5,] <- x[6:10,]
-as.matrix(x2[,1]) <- 20
+contacts(x2[,1]) <- 20
 
 # Combining
 cbind(x, x)
 rbind(x, x)
+sbind(x, x)
 }
 
 \author{

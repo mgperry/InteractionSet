@@ -15,7 +15,7 @@ Inflate a GInteractions or InteractionSet into a ContactMatrix, or deflate a Con
 \usage{
 \S4method{inflate}{GInteractions}(x, rows, columns, fill, ...)
 
-\S4method{inflate}{InteractionSet}(x, rows, columns, assay=1L, sample=1L, fill=NULL, ...)
+\S4method{inflate}{InteractionSet}(x, rows, columns, assay=1L, sample, ...)
 
 \S4method{deflate}{ContactMatrix}(x, unique=TRUE, ...)
 }
@@ -41,12 +41,12 @@ Inflate a GInteractions or InteractionSet into a ContactMatrix, or deflate a Con
 }
 
 \item{sample}{
-    A numeric scalar indicating the sample (i.e., column) of the assay to extract values to fill the ContactMatrix.
+    A numeric vector indicating the samples of the assay from which values are to be extracted, to fill the ContactMatrix.
 }
 
 \item{fill}{
-    A numeric vector of length equal to \code{nrow(x)}, containing values with which to fill the ContactMatrix.
-    If specified, this overrides extraction of assay values for \code{inflate,InteractionSet-method}.
+    A vector of length equal to \code{nrow(x)}, containing values with which to fill the ContactMatrix.
+    Alternatively, a matrix with number of rows equal to \code{nrow(x)}.
 }
 
 \item{unique}{
@@ -61,15 +61,21 @@ Inflate a GInteractions or InteractionSet into a ContactMatrix, or deflate a Con
 }
 
 \details{
-The \code{inflate} method will return a ContactMatrix where the rows and columns correspond to specified regions of interest in \code{rows} and \code{columns}.
-For the GInteractions method, values in the matrix are filled based on user-supplied values in \code{fill}.
-Each entry of \code{fill} corresponds to an interaction in \code{x} is used to set the matrix value at the matching row/column.
-Some entries of the matrix will correspond to pairwise interactions that are not present in the InteractionSet - these are filled with \code{NA} values.
+The \code{inflate} method will return a ContactMatrix containing one or more matrices, 
+    where the rows and columns correspond to specified regions of interest in \code{rows} and \code{columns}.
+For the GInteractions method with a vector \code{fill}, the ContactMatrix will contain only one matrix.
+Each entry of \code{fill} corresponds to a pairwise interaction in \code{x} and is used to set the matrix value at the matching row/column.
+Some entries of the matrix will correspond to interactions that are not present in the InteractionSet - these are filled with \code{NA} values.
 If duplicated interactions are present in \code{x}, only the first interaction will be used.
+
+Alternatively, if a \code{fill} matrix is supplied, the number of matrices in the returned ContactMatrix is defined from the number of columns in \code{fill}.
+Each row contains values for a pairwise interaction, corresponding to an entry in \code{x}.
+Each matrix is filled according to the values in the corresponding column of \code{fill}.
  
-For the InteractionSet \code{inflate} method, values in the matrix are filled in based on the assay values by default.
-For more complex \code{x}, values from different assays and samples can be extracted using the \code{assay} and \code{sample} arguments.
-Note that if \code{fill} is specified, it will override any extraction of values from the assays.
+For the InteractionSet \code{inflate} method, the number of matrices in the ContactMatrix is equal to the number of samples.
+Values in each matrix are filled in based on the assay values for the corresponding sample, by default.
+The assay to be used and the samples to be inflated can be controlled by altering the \code{assay} and \code{sample} arguments.
+By default, all samples are inflated from the first assay.
 
 The \code{deflate} method will return an InteractionSet where each non-\code{NA} entry in the ContactMatrix is converted into a pairwise interaction.
 The values of all matrix entries are stored as a one-sample assay.
@@ -96,12 +102,9 @@ y <- inflate(iset, 1:10, 1:10, sample=2)
 iset2 <- deflate(y)
 assay(iset2)
 
-y <- inflate(iset, 1:10, 1:10, fill=rowSums(assay(iset)))
+y <- inflate(interactions(iset), 1:10, 1:10, fill=rowSums(assay(iset)))
 iset2 <- deflate(y)
 assay(iset2)
-
-y2 <- inflate(interactions(iset), 1:10, 1:10, rowSums(assay(iset)))
-identical(y, y2) # should be TRUE
 
 # Effect of 'unique'
 y <- inflate(iset, c(8, 1:10), 1:10)
